@@ -19,6 +19,7 @@ let tenpaiList = [];
 let confirmActionCallback = null;
 let inputMode = 'MANUAL'; 
 
+// 다중 승자용 블럭 상태 관리
 let builders = {};
 let activeWIdForKeyboard = null; 
 let pendingBlockType = null;
@@ -30,6 +31,7 @@ const tileList = [
   '동','남','서','북','백','발','중'
 ];
 
+// === UI 공통 및 데이터 저장 ===
 function showToast(message) {
   const toast = document.getElementById("toast");
   toast.innerText = message; toast.classList.add("show");
@@ -60,6 +62,7 @@ function updateUI() {
     if(match.oya === i) playerDiv.classList.add('is-oya');
     if(match.players[i].isRiichi) playerDiv.classList.add('is-riichi');
   }
+  // 항상 상태가 변할 때마다 저장
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ match, gameHistory }));
 }
 
@@ -82,6 +85,7 @@ function toggleRiichi(id) {
 }
 function resetRiichiFlags() { match.players.forEach(p => p.isRiichi = false); }
 
+// === 다중 승자용 블럭 조립기 ===
 function initBlockKeyboard() {
   const container = document.getElementById('tile-keyboard-container');
   const groups = [
@@ -90,6 +94,7 @@ function initBlockKeyboard() {
     { cls: 'sou', label: '삭', count: 9 },
     { cls: 'jihai', labels: ['동','남','서','북','백','발','중'] }
   ];
+
   let html = `<div class="keyboard-title" id="keyboard-instruction">패를 선택하세요</div>`;
   groups.forEach(g => {
     html += `<div class="tile-keyboard-row">`;
@@ -105,9 +110,7 @@ function initBlockKeyboard() {
 
 function initBuildersForWinners() {
   winners.forEach(wId => {
-    if (!builders[wId]) {
-      builders[wId] = { blocks: [], blockIdCounter: 0, winningBlockId: null, winningTileIdx: null };
-    }
+    if (!builders[wId]) builders[wId] = { blocks: [], blockIdCounter: 0, winningBlockId: null, winningTileIdx: null };
   });
   Object.keys(builders).forEach(key => {
     if (!winners.includes(parseInt(key))) delete builders[key];
@@ -116,8 +119,10 @@ function initBuildersForWinners() {
 
 function openKeyboard(wId, type) {
   if (builders[wId].blocks.length >= 7) return showToast("더 이상 추가할 수 없습니다.");
-  activeWIdForKeyboard = wId; pendingBlockType = type;
+  activeWIdForKeyboard = wId;
+  pendingBlockType = type;
   document.getElementById('tile-keyboard-container').style.display = 'flex';
+  
   const instruction = document.getElementById('keyboard-instruction');
   const pName = match.players[wId].name;
   if (type === 'shuntsu') instruction.innerText = `[${pName}] 순쯔(연속패)의 '첫 번째 패' 누르기`;
@@ -130,6 +135,7 @@ function addBlockFromKey(tileName) {
   if (activeWIdForKeyboard === null) return;
   let idx = tileList.indexOf(tileName);
   let tilesToAdd = [];
+
   if (pendingBlockType === 'shuntsu') {
     if (idx >= 27) return showToast("자패로는 순쯔를 만들 수 없습니다.");
     if (idx % 9 >= 7) return showToast("8, 9로는 시작할 수 없습니다.");
@@ -173,24 +179,51 @@ function renderAutoBuilders() {
     document.getElementById('tile-keyboard-container').style.display = 'none';
     return;
   }
+
   let html = '';
   winners.forEach(wId => {
-    const bData = builders[wId]; const pName = match.players[wId].name;
+    const bData = builders[wId];
+    const pName = match.players[wId].name;
+    
     let blocksHtml = bData.blocks.map(block => {
       let tileHtml = block.tiles.map((tName, i) => {
         let isWin = (bData.winningBlockId === block.id && bData.winningTileIdx === i) ? 'is-winning' : '';
         return `<span class="block-tile ${isWin}" onclick="setWinningTile(${wId}, ${block.id}, ${i})">${tName}</span>`;
       }).join('');
+
       let nakiLabel = block.isOpen ? '🔓울음' : '🔒멘젠';
       let nakiBtn = (block.type === 'pair') ? '' : `<button class="btn-toggle-naki" onclick="toggleNaki(${wId}, ${block.id})">${nakiLabel}</button>`;
-      return `<div class="hand-block ${block.isOpen ? 'is-open' : ''}"><div class="block-tiles">${tileHtml}</div><div class="block-actions">${nakiBtn}<button class="btn-delete-block" onclick="deleteBlock(${wId}, ${block.id})">삭제</button></div></div>`;
+
+      return `
+        <div class="hand-block ${block.isOpen ? 'is-open' : ''}">
+          <div class="block-tiles">${tileHtml}</div>
+          <div class="block-actions">
+            ${nakiBtn}
+            <button class="btn-delete-block" onclick="deleteBlock(${wId}, ${block.id})">삭제</button>
+          </div>
+        </div>`;
     }).join('');
+
     if (bData.blocks.length === 0) blocksHtml = '<span style="color:#6b7280; font-size:0.85rem; width:100%; text-align:center;">블럭을 추가해주세요.</span>';
-    html += `<div class="auto-builder-panel"><div class="builder-header">▶ [${pName}]의 패 조립</div><div class="block-builder-controls"><button class="btn-add-block" onclick="openKeyboard(${wId}, 'shuntsu')">+ 순쯔(123)</button><button class="btn-add-block" onclick="openKeyboard(${wId}, 'koutsu')">+ 커쯔(111)</button><button class="btn-add-block" onclick="openKeyboard(${wId}, 'kantsu')">+ 깡쯔(1111)</button><button class="btn-add-block" onclick="openKeyboard(${wId}, 'pair')">+ 머리(11)</button></div><div class="hand-blocks-container">${blocksHtml}</div><div style="font-size:0.8rem; color:#fca5a5;">※ 복합 대기일 경우 부수가 높은 패를 오름패로 찍어주세요.</div></div>`;
+
+    html += `
+      <div class="auto-builder-panel">
+        <div class="builder-header">▶ [${pName}]의 패 조립</div>
+        <div class="block-builder-controls">
+          <button class="btn-add-block" onclick="openKeyboard(${wId}, 'shuntsu')">+ 순쯔(123)</button>
+          <button class="btn-add-block" onclick="openKeyboard(${wId}, 'koutsu')">+ 커쯔(111)</button>
+          <button class="btn-add-block" onclick="openKeyboard(${wId}, 'kantsu')">+ 깡쯔(1111)</button>
+          <button class="btn-add-block" onclick="openKeyboard(${wId}, 'pair')">+ 머리(11)</button>
+        </div>
+        <div class="hand-blocks-container">${blocksHtml}</div>
+        <div style="font-size:0.8rem; color:#fca5a5;">※ 복합 대기일 경우 부수가 높은 패를 오름패로 찍어주세요.</div>
+      </div>
+    `;
   });
   container.innerHTML = html;
 }
 
+// === 부수(Fu) 엔진 완벽판 ===
 function isYaochu(name) {
   const idx = tileList.indexOf(name);
   return (idx >= 27) || (idx % 9 === 0) || (idx % 9 === 8); 
@@ -200,9 +233,7 @@ function calculateAllFu() {
   if (winners.length === 0) return showToast("승자를 선택해주세요.");
   let successCount = 0;
 
-  // for문으로 변경하여 에러 발생 시 깔끔하게 continue 처리되게 보완
-  for(let i = 0; i < winners.length; i++) {
-    const wId = winners[i];
+  winners.forEach(wId => {
     const bData = builders[wId];
     const blocks = bData.blocks;
     
@@ -212,13 +243,13 @@ function calculateAllFu() {
     let isChiitoi = (blocks.length === 7 && pairs === 7);
     let isStandard = (pairs === 1 && melds === 4);
 
-    if (!isChiitoi && !isStandard) { showToast(`[${match.players[wId].name}] 패가 불완전합니다.`); continue; }
-    if (bData.winningBlockId === null) { showToast(`[${match.players[wId].name}] 오름패를 터치해주세요.`); continue; }
+    if (!isChiitoi && !isStandard) { showToast(`[${match.players[wId].name}] 패가 불완전합니다.`); return; }
+    if (bData.winningBlockId === null) { showToast(`[${match.players[wId].name}] 오름패를 터치해주세요.`); return; }
 
     if (isChiitoi) {
       applyCalculatedFu(wId, 25);
       successCount++;
-      continue;
+      return;
     }
 
     let isHandMenzen = blocks.every(b => !b.isOpen);
@@ -288,10 +319,10 @@ function calculateAllFu() {
 
     applyCalculatedFu(wId, fu);
     successCount++;
-  }
+  });
 
   if (successCount === winners.length) {
-    showToast("부수 자동 계산 완료!\n판수(Han)를 확정해주세요.");
+    showToast("선택된 승자들의 부수 계산이 완료되었습니다!\n판수(Han)를 확정해주세요.");
   }
 }
 
@@ -301,14 +332,12 @@ function applyCalculatedFu(winnerId, fuValue) {
   setInputMode('MANUAL'); 
 }
 
-// === ✨ 에러 유발 찌꺼기 완벽 제거된 모달 오픈 로직 ===
+// === 화료 모달 제어 ===
 function openModal() {
   winners = []; loserId = null;
   document.getElementById('winModal').style.display = 'flex';
   setWinType('RON'); setInputMode('MANUAL');
-  // (에러의 원인이었던 renderHandBlocks() 코드를 완전히 지웠습니다!)
 }
-
 function closeModal() { document.getElementById('winModal').style.display = 'none'; }
 function setWinType(type) {
   winType = type;
@@ -367,6 +396,7 @@ function updateModalUI() {
     loserBtns[i].className = (loserId === i) ? 'active-lose' : '';
     loserBtns[i].disabled = winners.includes(i); 
   }
+  
   initBuildersForWinners();
   renderAutoBuilders();
   renderDynamicInputs();
@@ -385,11 +415,9 @@ function calcScore(han, fu, isOya, isTsumo) {
   else return { total: ceil100(base * (isOya ? 6 : 4)), oyaPays: 0, koPays: 0 };
 }
 
-// === ✨ 점수 적용 안전장치 덧댐 ===
 function applyScore() {
   if (winners.length === 0) return showToast("승자를 1명 이상 선택해주세요!"); 
   if (winType === 'RON' && loserId === null) return showToast("패자(방총자)를 선택해주세요!"); 
-  
   const roundLabel = `${match.roundInfo[match.roundIdx]} ${match.kyoku}국 (${match.honba}본장)`;
   const winnerNames = winners.map(id => match.players[id].name).join(", ");
   const actionLabel = `화료 (${winType === 'TSUMO' ? '쯔모' : '론'}) - 승자: ${winnerNames}`;
@@ -398,13 +426,8 @@ function applyScore() {
 
   winners.forEach(wId => {
     if (wId === match.oya) isOyaWin = true;
-    
-    // 요소가 렌더링되지 않았을 때를 대비한 안전망 (Fallback) 추가
-    const hanElem = document.getElementById(`han-${wId}`);
-    const fuElem = document.getElementById(`fu-${wId}`);
-    const han = hanElem ? parseInt(hanElem.value) : 1;
-    const fu = fuElem ? parseInt(fuElem.value) : 30;
-    
+    const han = parseInt(document.getElementById(`han-${wId}`).value);
+    const fu = parseInt(document.getElementById(`fu-${wId}`).value);
     const scoreData = calcScore(han, fu, wId === match.oya, winType === 'TSUMO');
 
     if (winType === 'TSUMO') {
@@ -516,19 +539,32 @@ function confirmRevert(index) {
   });
 }
 
+// 🚨 로컬 스토리지 버그 완벽 수정본 
 window.onload = () => {
   initBlockKeyboard(); 
+  
   const savedData = localStorage.getItem(STORAGE_KEY);
   if (savedData) {
     try {
       const parsed = JSON.parse(savedData);
-      match = parsed.match; gameHistory = parsed.history;
-      showToast("이전 게임 데이터를 불러왔습니다.");
+      match = parsed.match || match; 
+      
+      // ✅ parsed.gameHistory 로 정확히 받아옴!
+      gameHistory = parsed.gameHistory || []; 
+      
+      if (gameHistory.length === 0) {
+        gameHistory.push({ action: "게임 시작", roundStr: "초기 상태", state: JSON.parse(JSON.stringify(match)) });
+      } else {
+        showToast("이전 게임 데이터를 불러왔습니다.");
+      }
     } catch(e) {
+      console.error("데이터 파싱 오류", e);
+      gameHistory = [];
       gameHistory.push({ action: "게임 시작", roundStr: "초기 상태", state: JSON.parse(JSON.stringify(match)) });
     }
   } else {
     gameHistory.push({ action: "게임 시작", roundStr: "초기 상태", state: JSON.parse(JSON.stringify(match)) });
   }
+  
   updateUI();
 };
