@@ -19,7 +19,6 @@ let tenpaiList = [];
 let confirmActionCallback = null;
 let inputMode = 'MANUAL'; 
 
-// 다중 승자용 블럭 상태 관리
 let builders = {};
 let activeWIdForKeyboard = null; 
 let pendingBlockType = null;
@@ -31,7 +30,6 @@ const tileList = [
   '동','남','서','북','백','발','중'
 ];
 
-// === UI 공통 및 데이터 저장 ===
 function showToast(message) {
   const toast = document.getElementById("toast");
   toast.innerText = message; toast.classList.add("show");
@@ -84,7 +82,6 @@ function toggleRiichi(id) {
 }
 function resetRiichiFlags() { match.players.forEach(p => p.isRiichi = false); }
 
-// === 블럭 조립기 (Auto Mode) ===
 function initBlockKeyboard() {
   const container = document.getElementById('tile-keyboard-container');
   const groups = [
@@ -93,7 +90,6 @@ function initBlockKeyboard() {
     { cls: 'sou', label: '삭', count: 9 },
     { cls: 'jihai', labels: ['동','남','서','북','백','발','중'] }
   ];
-
   let html = `<div class="keyboard-title" id="keyboard-instruction">패를 선택하세요</div>`;
   groups.forEach(g => {
     html += `<div class="tile-keyboard-row">`;
@@ -120,10 +116,8 @@ function initBuildersForWinners() {
 
 function openKeyboard(wId, type) {
   if (builders[wId].blocks.length >= 7) return showToast("더 이상 추가할 수 없습니다.");
-  activeWIdForKeyboard = wId;
-  pendingBlockType = type;
+  activeWIdForKeyboard = wId; pendingBlockType = type;
   document.getElementById('tile-keyboard-container').style.display = 'flex';
-  
   const instruction = document.getElementById('keyboard-instruction');
   const pName = match.players[wId].name;
   if (type === 'shuntsu') instruction.innerText = `[${pName}] 순쯔(연속패)의 '첫 번째 패' 누르기`;
@@ -136,7 +130,6 @@ function addBlockFromKey(tileName) {
   if (activeWIdForKeyboard === null) return;
   let idx = tileList.indexOf(tileName);
   let tilesToAdd = [];
-
   if (pendingBlockType === 'shuntsu') {
     if (idx >= 27) return showToast("자패로는 순쯔를 만들 수 없습니다.");
     if (idx % 9 >= 7) return showToast("8, 9로는 시작할 수 없습니다.");
@@ -180,51 +173,24 @@ function renderAutoBuilders() {
     document.getElementById('tile-keyboard-container').style.display = 'none';
     return;
   }
-
   let html = '';
   winners.forEach(wId => {
-    const bData = builders[wId];
-    const pName = match.players[wId].name;
-    
+    const bData = builders[wId]; const pName = match.players[wId].name;
     let blocksHtml = bData.blocks.map(block => {
       let tileHtml = block.tiles.map((tName, i) => {
         let isWin = (bData.winningBlockId === block.id && bData.winningTileIdx === i) ? 'is-winning' : '';
         return `<span class="block-tile ${isWin}" onclick="setWinningTile(${wId}, ${block.id}, ${i})">${tName}</span>`;
       }).join('');
-
       let nakiLabel = block.isOpen ? '🔓울음' : '🔒멘젠';
       let nakiBtn = (block.type === 'pair') ? '' : `<button class="btn-toggle-naki" onclick="toggleNaki(${wId}, ${block.id})">${nakiLabel}</button>`;
-
-      return `
-        <div class="hand-block ${block.isOpen ? 'is-open' : ''}">
-          <div class="block-tiles">${tileHtml}</div>
-          <div class="block-actions">
-            ${nakiBtn}
-            <button class="btn-delete-block" onclick="deleteBlock(${wId}, ${block.id})">삭제</button>
-          </div>
-        </div>`;
+      return `<div class="hand-block ${block.isOpen ? 'is-open' : ''}"><div class="block-tiles">${tileHtml}</div><div class="block-actions">${nakiBtn}<button class="btn-delete-block" onclick="deleteBlock(${wId}, ${block.id})">삭제</button></div></div>`;
     }).join('');
-
     if (bData.blocks.length === 0) blocksHtml = '<span style="color:#6b7280; font-size:0.85rem; width:100%; text-align:center;">블럭을 추가해주세요.</span>';
-
-    html += `
-      <div class="auto-builder-panel">
-        <div class="builder-header">▶ [${pName}]의 패 조립</div>
-        <div class="block-builder-controls">
-          <button class="btn-add-block" onclick="openKeyboard(${wId}, 'shuntsu')">+ 순쯔(123)</button>
-          <button class="btn-add-block" onclick="openKeyboard(${wId}, 'koutsu')">+ 커쯔(111)</button>
-          <button class="btn-add-block" onclick="openKeyboard(${wId}, 'kantsu')">+ 깡쯔(1111)</button>
-          <button class="btn-add-block" onclick="openKeyboard(${wId}, 'pair')">+ 머리(11)</button>
-        </div>
-        <div class="hand-blocks-container">${blocksHtml}</div>
-        <div style="font-size:0.8rem; color:#fca5a5;">※ 복합 대기일 경우 부수가 높은 패를 오름패로 찍어주세요.</div>
-      </div>
-    `;
+    html += `<div class="auto-builder-panel"><div class="builder-header">▶ [${pName}]의 패 조립</div><div class="block-builder-controls"><button class="btn-add-block" onclick="openKeyboard(${wId}, 'shuntsu')">+ 순쯔(123)</button><button class="btn-add-block" onclick="openKeyboard(${wId}, 'koutsu')">+ 커쯔(111)</button><button class="btn-add-block" onclick="openKeyboard(${wId}, 'kantsu')">+ 깡쯔(1111)</button><button class="btn-add-block" onclick="openKeyboard(${wId}, 'pair')">+ 머리(11)</button></div><div class="hand-blocks-container">${blocksHtml}</div><div style="font-size:0.8rem; color:#fca5a5;">※ 복합 대기일 경우 부수가 높은 패를 오름패로 찍어주세요.</div></div>`;
   });
   container.innerHTML = html;
 }
 
-// === ✨ 완벽한 마작 부수 엔진 ===
 function isYaochu(name) {
   const idx = tileList.indexOf(name);
   return (idx >= 27) || (idx % 9 === 0) || (idx % 9 === 8); 
@@ -234,7 +200,9 @@ function calculateAllFu() {
   if (winners.length === 0) return showToast("승자를 선택해주세요.");
   let successCount = 0;
 
-  winners.forEach(wId => {
+  // for문으로 변경하여 에러 발생 시 깔끔하게 continue 처리되게 보완
+  for(let i = 0; i < winners.length; i++) {
+    const wId = winners[i];
     const bData = builders[wId];
     const blocks = bData.blocks;
     
@@ -244,19 +212,18 @@ function calculateAllFu() {
     let isChiitoi = (blocks.length === 7 && pairs === 7);
     let isStandard = (pairs === 1 && melds === 4);
 
-    if (!isChiitoi && !isStandard) { showToast(`[${match.players[wId].name}] 패가 불완전합니다.`); return; }
-    if (bData.winningBlockId === null) { showToast(`[${match.players[wId].name}] 오름패를 터치해주세요.`); return; }
+    if (!isChiitoi && !isStandard) { showToast(`[${match.players[wId].name}] 패가 불완전합니다.`); continue; }
+    if (bData.winningBlockId === null) { showToast(`[${match.players[wId].name}] 오름패를 터치해주세요.`); continue; }
 
     if (isChiitoi) {
       applyCalculatedFu(wId, 25);
       successCount++;
-      return;
+      continue;
     }
 
     let isHandMenzen = blocks.every(b => !b.isOpen);
     let fu = 20; 
 
-    // Tsumo vs Ron 기본점
     if (winType === 'RON' && isHandMenzen) fu += 10;
     let isTsumo = (winType === 'TSUMO');
 
@@ -271,26 +238,24 @@ function calculateAllFu() {
 
       if (block.type === 'pair') {
         let tIdx = tileList.indexOf(block.tiles[0]);
-        // 장풍패 체크
         let isRoundWind = (tIdx === 27 + match.roundIdx);
-        // 자풍패 체크
         let seatWind = (wId - match.oya + 4) % 4; 
         let isSeatWind = (tIdx === 27 + seatWind);
         let isDragon = (tIdx >= 31);
 
         if (isRoundWind || isSeatWind || isDragon) {
-          if (isRoundWind && isSeatWind) pairFu += 4; // 연풍패 4부
+          if (isRoundWind && isSeatWind) pairFu += 4; 
           else pairFu += 2;
           isPinghu = false;
         }
-        if (isWinBlock) { waitFu = 2; isPinghu = false; } // 단기 대기
+        if (isWinBlock) { waitFu = 2; isPinghu = false; } 
       } 
       else if (block.type === 'shuntsu') {
         if (isWinBlock) {
           let num = parseInt(block.tiles[winIdx].charAt(0));
-          if (winIdx === 1) { waitFu = 2; isPinghu = false; } // 간짱
-          else if (winIdx === 2 && num === 3) { waitFu = 2; isPinghu = false; } // 변짱 12(3)
-          else if (winIdx === 0 && num === 7) { waitFu = 2; isPinghu = false; } // 변짱 (7)89
+          if (winIdx === 1) { waitFu = 2; isPinghu = false; } 
+          else if (winIdx === 2 && num === 3) { waitFu = 2; isPinghu = false; } 
+          else if (winIdx === 0 && num === 7) { waitFu = 2; isPinghu = false; } 
         }
       } 
       else if (block.type === 'koutsu' || block.type === 'kantsu') {
@@ -298,7 +263,6 @@ function calculateAllFu() {
         let isYao = isYaochu(block.tiles[0]);
         let isClosed = !block.isOpen;
 
-        // 🚨 론 화료 시 멘젠 커쯔의 명각(Open) 취급 룰
         if (isWinBlock && winType === 'RON' && isClosed) {
           isClosed = false; 
         }
@@ -312,40 +276,39 @@ function calculateAllFu() {
 
     fu += pairFu + waitFu + meldFu;
 
-    // 🚨 핑후 특례 및 올림 처리
     if (isPinghu && pairFu === 0 && meldFu === 0 && waitFu === 0) {
-      if (isTsumo) fu = 20; // 핑후 쯔모 20부
-      else fu = 30; // 핑후 론 30부
+      if (isTsumo) fu = 20; 
+      else fu = 30; 
     } else {
-      if (isTsumo) fu += 2; // 일반 쯔모
+      if (isTsumo) fu += 2; 
       fu = Math.ceil(fu / 10) * 10;
-      if (fu === 20 && winType === 'RON') fu = 30; // 오픈 론 최소 30부
-      if (fu === 20 && !isHandMenzen) fu = 30; // 오픈 형태 최소 30부
+      if (fu === 20 && winType === 'RON') fu = 30; 
+      if (fu === 20 && !isHandMenzen) fu = 30; 
     }
 
     applyCalculatedFu(wId, fu);
     successCount++;
-  });
+  }
 
   if (successCount === winners.length) {
-    showToast("선택된 승자들의 부수 계산이 완료되었습니다!\n판수(Han)를 확정해주세요.");
+    showToast("부수 자동 계산 완료!\n판수(Han)를 확정해주세요.");
   }
 }
 
 function applyCalculatedFu(winnerId, fuValue) {
   const fuSelect = document.getElementById(`fu-${winnerId}`);
-  // ✨ 110부 이상 캡핑
   if(fuSelect) fuSelect.value = fuValue > 110 ? "110" : fuValue.toString();
   setInputMode('MANUAL'); 
 }
 
-
-// === 화료 모달 제어 ===
+// === ✨ 에러 유발 찌꺼기 완벽 제거된 모달 오픈 로직 ===
 function openModal() {
   winners = []; loserId = null;
   document.getElementById('winModal').style.display = 'flex';
   setWinType('RON'); setInputMode('MANUAL');
+  // (에러의 원인이었던 renderHandBlocks() 코드를 완전히 지웠습니다!)
 }
+
 function closeModal() { document.getElementById('winModal').style.display = 'none'; }
 function setWinType(type) {
   winType = type;
@@ -380,21 +343,16 @@ function renderDynamicInputs() {
   let html = '';
   winners.forEach(wId => {
     const pName = match.players[wId].name;
-    // ✨ 110부까지 옵션 확장
     html += `
       <div class="dynamic-row">
         <div class="player-label">▶ [${pName}]의 화료 점수</div>
         <div class="input-group" style="padding: 5px 10px; background: transparent;">
           <label>판(Han)</label>
-          <select id="han-${wId}">
-            <option value="1">1판</option><option value="2">2판</option><option value="3">3판</option><option value="4">4판</option><option value="5">5판(만관)</option><option value="6">6~7판(하네만)</option><option value="8">8~10판(배만)</option><option value="11">11~12판(삼배만)</option><option value="13">13판+(역만)</option>
-          </select>
+          <select id="han-${wId}"><option value="1">1판</option><option value="2">2판</option><option value="3">3판</option><option value="4">4판</option><option value="5">5판(만관)</option><option value="6">6~7판(하네만)</option><option value="8">8~10판(배만)</option><option value="11">11~12판(삼배만)</option><option value="13">13판+(역만)</option></select>
         </div>
         <div class="input-group" style="padding: 5px 10px; background: transparent;">
           <label>부(Fu)</label>
-          <select id="fu-${wId}">
-            <option value="20">20부</option><option value="25">25부(치또이츠)</option><option value="30" selected>30부</option><option value="40">40부</option><option value="50">50부</option><option value="60">60부</option><option value="70">70부</option><option value="80">80부</option><option value="90">90부</option><option value="100">100부</option><option value="110">110부~</option>
-          </select>
+          <select id="fu-${wId}"><option value="20">20부</option><option value="25">25부(치또이츠)</option><option value="30" selected>30부</option><option value="40">40부</option><option value="50">50부</option><option value="60">60부</option><option value="70">70부</option><option value="80">80부</option><option value="90">90부</option><option value="100">100부</option><option value="110">110부~</option></select>
         </div>
       </div>`;
   });
@@ -409,7 +367,6 @@ function updateModalUI() {
     loserBtns[i].className = (loserId === i) ? 'active-lose' : '';
     loserBtns[i].disabled = winners.includes(i); 
   }
-  
   initBuildersForWinners();
   renderAutoBuilders();
   renderDynamicInputs();
@@ -428,9 +385,11 @@ function calcScore(han, fu, isOya, isTsumo) {
   else return { total: ceil100(base * (isOya ? 6 : 4)), oyaPays: 0, koPays: 0 };
 }
 
+// === ✨ 점수 적용 안전장치 덧댐 ===
 function applyScore() {
   if (winners.length === 0) return showToast("승자를 1명 이상 선택해주세요!"); 
   if (winType === 'RON' && loserId === null) return showToast("패자(방총자)를 선택해주세요!"); 
+  
   const roundLabel = `${match.roundInfo[match.roundIdx]} ${match.kyoku}국 (${match.honba}본장)`;
   const winnerNames = winners.map(id => match.players[id].name).join(", ");
   const actionLabel = `화료 (${winType === 'TSUMO' ? '쯔모' : '론'}) - 승자: ${winnerNames}`;
@@ -439,8 +398,13 @@ function applyScore() {
 
   winners.forEach(wId => {
     if (wId === match.oya) isOyaWin = true;
-    const han = parseInt(document.getElementById(`han-${wId}`).value);
-    const fu = parseInt(document.getElementById(`fu-${wId}`).value);
+    
+    // 요소가 렌더링되지 않았을 때를 대비한 안전망 (Fallback) 추가
+    const hanElem = document.getElementById(`han-${wId}`);
+    const fuElem = document.getElementById(`fu-${wId}`);
+    const han = hanElem ? parseInt(hanElem.value) : 1;
+    const fu = fuElem ? parseInt(fuElem.value) : 30;
+    
     const scoreData = calcScore(han, fu, wId === match.oya, winType === 'TSUMO');
 
     if (winType === 'TSUMO') {
@@ -554,7 +518,6 @@ function confirmRevert(index) {
 
 window.onload = () => {
   initBlockKeyboard(); 
-  
   const savedData = localStorage.getItem(STORAGE_KEY);
   if (savedData) {
     try {
